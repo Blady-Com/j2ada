@@ -1,0 +1,109 @@
+
+        J2Ada
+
+
+1) Introduction
+J2Ada traduit un code source Java valide en code source Ada.
+Dans cette première version, une grande partie de la syntaxe Java est traduite.
+Pour le moment, les parties spécification et corps de l'unité Ada générée
+sont valides avec quelques modifications manuelles.
+
+2) Création du programme de traduction
+Télécharger l'archive J2Ada-1.4b.tgz de la version 1.4b sur Blady :
+http://blady.pagesperso-orange.fr/creations.html#j2ada
+
+. Les sources du programme J2Ada sont :
+arbmgr.adb
+arbmgr.ads
+basicdef.adb
+basicdef.ads
+fichsrc.adb
+fichsrc.ads
+importmgr.adb
+importmgr.ads
+insrc.adb
+insrc.ads
+j2ada.adb
+javaseq.adb
+javaseq.ads
+javaseq.auto
+javaseq.in
+objpar.ads
+objsrc.adb
+objsrc.ads
+outsrc.adb
+outsrc.ads
+
+. Création de l'automate d'interprétation du langage Java :
+L'unité Ada est déjà créée : javaseq.adb et javaseq.ads.
+Si besoin l'automate se modifie avec le fichier javaseq.auto contenant
+la syntaxe Java.
+Télécharger le compilateur d'automate sur Blady :
+http://blady.pagesperso-orange.fr/creations.htm#automate
+Compiler le programme genauto puis utiliser le pour générer l'unité Ada :
+$ gnatmake genauto
+$ ./genauto < javaseq.in
+
+. Compilation du traducteur J2Ada:
+$ gnatmake j2ada
+
+3) Utilisation
+Les programmes ont été compilés et testés avec GNAT GPL 2008 sur Mac OS X 10.4.
+Traduction de essai.java en essai.adb et essai.ads :
+$ ./j2ada
+Entrer les informations suivantes :
+
+Nom du fichier source : essai.java
+Lecture de essai.java ...
+Temps passé :  108 millisecondes.
+Nom de l'unité Ada : (essai.ads) : 
+Nom de l'unité Ada : (essai.adb) : 
+$ gnatmake -gnatc essai.adb
+gcc -c -gnatc essai.adb
+essai.adb:32:01: declarations must come before "begin"
+essai.adb:55:01: declarations must come before "begin"
+essai.adb:93:01: declarations must come before "begin"
+essai.adb:96:04: loop or block statement must follow label
+essai.adb:98:04: loop or block statement must follow label
+essai.adb:100:04: loop or block statement must follow label
+essai.adb:105:04: loop or block statement must follow label
+essai.adb:107:04: loop or block statement must follow label
+gnatmake: "essai.adb" compilation error
+$
+Les erreurs résiduelles du début sont inhérentes à la déclaration des variables
+mélangées au code en Java. Un commentaire "--  Help J2Ada : put it before begin"
+a été ajouté pour effectuée la bonne modification.
+Le code source essai.ads utilise les bibliothèques Java fournies à partir de
+celles de JGNAT (voir par ailleurs sur Blady):
+java-lang-string.ads
+java-lang.ads
+java.ads
+
+L'affichage de chaque étape de la traduction s'active en positionnant à True
+la constante Debug dans j2ada.adb.
+
+4) Copyright et licence des fichiers sources de J2Ada (voir liste §2) :
+(c) Pascal Pignard 2008-2010 (http://blady.pagesperso-orange.fr)
+CeCILL V2 (http://www.cecill.info)
+Voir également les fichiers joints :
+Licence_CeCILL_V2-en.txt et Licence_CeCILL_V2-fr.txt.
+
+5) Historique
+- 1.4b :
+Ajout des fichiers importmgr.adb et importmgr.ads malencontreusement oubliés.
+- 1.4a :
+Gestion des parenthèses vides dans un appel de fonction sans paramètres.
+Prise en compte de l'instruction throws et des références récursives d'objets.
+Correction des initialisations statiques, des instructions try, import et for.
+- 1.3a :
+Ajout de la traduction des structures de contrôle Java (assert, switch, for).
+- 1.2a :
+Ajout de la traduction des classes Java en des paquetages et types objets Ada.
+Ajout de la prise en compte des API Java.
+- 1.1a :
+Ajout de la traduction de classes simples.
+- 1.0a :
+Première version pour une démonstration du traducteur.
+
+Pascal Pignard, août-décembre 2008, avril 2010.
+

@@ -1,0 +1,1225 @@
+-------------------------------------------------------------------------------
+-- NOM DU CSU (automate)            : JavaSeq.auto
+-- AUTEUR DU CSU                    : P. Pignard
+-- VERSION DU CSU                   : 1.4a
+-- DATE DE LA DERNIERE MISE A JOUR  : 23 décembre 2008
+-- ROLE DU CSU                      : Automate assurant le décodage syntaxique
+--                                    du langage Java.
+--
+-- FONCTIONS EXPORTEES DU CSU       : JavaSeq
+--
+--
+-- FONCTIONS LOCALES DU CSU         :
+--
+--
+-- NOTES                            :
+--  Basé sur "BNF rules of JAVA"
+--  Index général - Index concepts - Règles BNF
+--  (c) 1996, DIP Genève, Alexandre Maret & Jacques Guyot
+--  page générée Thu Jun 20 11:52:01 MET DST 1996
+--
+-- COPYRIGHT                        : (c) Pascal Pignard 2008
+-- LICENCE                          : CeCILL V2 (http://www.cecill.info)
+-- CONTACT                          : http://blady.pagesperso-orange.fr
+-------------------------------------------------------------------------------
+
+automate javaseq
+
+--  Evénements définis par défaut
+default
+  event CommentId to same
+    action `    AddNew(OutputList, Token);`
+  event NewLineId to same
+    action `    if Debug then`
+           `      Status(SrcAuto, NomFich, LigneFich);`
+           `      Put_Line("Fichier " & NomFich & ", ligne " & Integer'Image(LigneFich));`
+           `    end if;`
+  event default to error
+    action `    Status(SrcAuto, NomFich, LigneFich);`
+           `    Put_Line("Erreur de syntaxe à la ligne " & Integer'Image(LigneFich) & " , " & TTokenId'Image(Event) & " , " & Token);`
+
+--  compilation_unit  =
+--   [ package_statement ]
+--   < import_statement >
+--   < type_declaration >  .
+--
+from compilation_unit
+  event PackageId to compilation_unit2
+    gosub package_statement
+  event ImportId to compilation_unit2
+    gosub import_statement
+  event PublicId, PrivateId, ProtectedId, StaticId, FinalId, NativeID, SynchronizedId, AbstractId, ThreadsafeId, TransientId, ClassId, InterfaceId + to compilation_unit3
+    gosub type_declaration
+  event EotId to out
+from compilation_unit2
+  event ImportId to compilation_unit2
+    gosub import_statement
+  event PublicId, PrivateId, ProtectedId, StaticId, FinalId, NativeID, SynchronizedId, AbstractId, ThreadsafeId, TransientId, ClassId, InterfaceId + to compilation_unit3
+    gosub type_declaration
+  event EotId to out
+from compilation_unit3
+  event PublicId, PrivateId, ProtectedId, StaticId, FinalId, NativeID, SynchronizedId, AbstractId, ThreadsafeId, TransientId, ClassId, InterfaceId + to compilation_unit3
+    gosub type_declaration
+  event EotId to out
+
+--  package_statement  =
+--   "package" package_name  ";"  .
+--
+from package_statement
+  event UndefId to package_statement1
+    action `    Add(PackageList, Token);`
+from package_statement1
+  event PointId to package_statement
+    action `    Add(PackageList, '.');`
+  event PointVirgId to out
+
+--  import_statement  =
+--   "import"  (  ( package_name  "."  "*"  ";"  )
+--   /  ( class_name  / interface_name )  )  ";"  .
+--
+from import_statement
+  event UndefId to import_statement2
+    action `    ImportUnit := Token;`
+from import_statement2
+  event PointId to import_statement3
+    action `    ImportUnit := ImportUnit & '.';`
+  event PointVirgId to out
+    action `    ImportClassList.Add (ImportUnit);`
+from import_statement3
+  event UndefId to import_statement2
+    action `    ImportUnit := ImportUnit & Token;`
+  event EtoileId to import_statement4
+    action `    ImportUnit := ImportUnit & '*';`
+from import_statement4
+  event PointVirgId to out
+    action `    ImportClassList.AddAll (ImportUnit);`
+
+--  type_declaration  =
+--   [ doc_comment ]  ( class_declaration  / interface_declaration )  ";"  .
+--
+from type_declaration
+  event PublicId, PrivateId, ProtectedId, StaticId, FinalId, NativeID, SynchronizedId, AbstractId, ThreadsafeId, TransientId to type_declaration2
+    action `    ClassList.Append(new TJavaClass);`
+    action `    ClassList.Last_Element.SetModifier(Token);`
+  event ClassId to type_declaration3
+    action `    ClassList.Append(new TJavaClass);`
+    gosub class_declaration
+  event InterfaceId to type_declaration3
+    action `    ClassList.Append(new TJavaClass);`
+    action `    ClassList.Last_Element.SetInterface;`
+    gosub interface_declaration
+from type_declaration2
+  event PublicId, PrivateId, ProtectedId, StaticId, FinalId, NativeID, SynchronizedId, AbstractId, ThreadsafeId, TransientId to type_declaration2
+    action `    ClassList.Last_Element.SetModifier(Token);`
+  event ClassId to type_declaration3
+    gosub class_declaration
+  event InterfaceId to type_declaration3
+    action `    ClassList.Last_Element.SetInterface;`
+    gosub interface_declaration
+from type_declaration3
+  event default + to out
+
+--  doc_comment  =  "/**"  "... text ..."  "*/"  .
+--
+
+--  class_declaration  =
+--   < modifier >  "class" identifier
+--   [  "extends" class_name ]
+--   [  "implements" interface_name  <  "," interface_name >  ]
+--   "{"  < field_declaration >  "}"  .
+--
+from class_declaration -- class
+  event UndefId to class_declaration2
+    action `    AddNew(ObjectSpecList, "package " & Current(PackageList) & Token & " is");`
+    action `    AddNew(ObjectBodyList, "package body " & Current(PackageList) & Token & " is");`
+    action `    ClassList.Last_Element.SetId(Token);`
+from class_declaration2
+  event ExtendsId to class_declaration3
+  event ImplementsId to class_declaration4
+  event AccoladeGaucheId to class_declaration5
+    gosub field_declaration
+from class_declaration3 -- extends
+  event UndefId to class_declaration31
+    action `    Add(ClassList.Last_Element.GetParentList, Token);`
+from class_declaration31
+  event PointId to class_declaration3
+    action `    Add(ClassList.Last_Element.GetParentList, '.');`
+  event ImplementsId to class_declaration4
+    action `    AddNew(ClassList.Last_Element.GetParentList);`
+  event AccoladeGaucheId to class_declaration5
+    action `    AddNew(ClassList.Last_Element.GetParentList);`
+    gosub field_declaration
+from class_declaration4 -- implements
+  event UndefId to class_declaration41
+    action `    Add(ClassList.Last_Element.GetParentList, Token);`
+from class_declaration41
+  event PointId to class_declaration4
+    action `    Add(ClassList.Last_Element.GetParentList, '.');`
+  event VirgId to class_declaration4
+    action `    AddNew(ClassList.Last_Element.GetParentList);`
+  event AccoladeGaucheId to class_declaration5
+    action `    AddNew(ClassList.Last_Element.GetParentList);`
+    gosub field_declaration
+from class_declaration5
+  event AccoladeDroiteId to out
+    -- le type est "fermé"
+    action `    if not ClassList.Last_Element.IsClosed then`
+    action `      ClassList.Last_Element.Add(ObjectSpecList);`
+    action `      if not ClassList.Last_Element.GetInterface then`
+    action `        if ClassList.Last_Element.GetFieldList.Vide then`
+    action `          AddNew(ObjectSpecList, " null record;");`
+    action `        else`
+    action `          AddNew(ObjectSpecList, " record");`
+    action `          Copy(ClassList.Last_Element.GetFieldList, ObjectSpecList);`
+    action `          Done(ClassList.Last_Element.GetFieldList);`
+    action `        AddNew(ObjectSpecList, "end record;");`
+    action `        end if;`
+    action `      else`
+    action `          AddNew(ObjectSpecList, ';');`
+    action `      end if;`
+    action `    end if;`
+    action `    AddNew(ObjectSpecList, "end " & ClassList.Last_Element.GetId & ';');`
+    action `    AddNew(ObjectBodyList, "end " & ClassList.Last_Element.GetId & ';');`
+    action `    ClassList.Delete_Last;`
+  event EotId to out
+  event default + to class_declaration5
+    gosub field_declaration
+
+--  interface_declaration  =
+--   < modifier >  "interface" identifier
+--   [  "extends" interface_name  <  "," interface_name >  ]
+--   "{"  < field_declaration >  "}"  .
+--
+from interface_declaration
+  event UndefId to interface_declaration2
+    action `    AddNew(ObjectSpecList, "package " & Current(PackageList) & Token & " is");`
+    action `    AddNew(ObjectBodyList, "package body " & Current(PackageList) & Token & " is");`
+    action `    ClassList.Last_Element.SetId(Token);`
+from interface_declaration2
+  event ExtendsId to interface_declaration3
+  event AccoladeGaucheId to interface_declaration5
+    gosub field_declaration
+from interface_declaration3
+  event UndefId to interface_declaration31
+    action `    Add(ClassList.Last_Element.GetParentList, Token);`
+from interface_declaration31
+  event PointId to interface_declaration3
+    action `    Add(ClassList.Last_Element.GetParentList, '.');`
+  event VirgId to interface_declaration3
+    action `    AddNew(ClassList.Last_Element.GetParentList);`
+  event AccoladeGaucheId to interface_declaration5
+    gosub field_declaration
+from interface_declaration5
+  event AccoladeDroiteId to out
+    -- le type est "fermé"
+    action `    if not ClassList.Last_Element.IsClosed then`
+    action `      ClassList.Last_Element.Add(ObjectSpecList);`
+    action `      AddNew(ObjectSpecList, ';');`
+    action `    end if;`
+    action `    AddNew(ObjectSpecList, "end " & ClassList.Last_Element.GetId & ';');`
+    action `    AddNew(ObjectBodyList, "end " & ClassList.Last_Element.GetId & ';');`
+    action `    ClassList.Delete_Last;`
+  event EotId to out
+  event default + to interface_declaration5
+    gosub field_declaration
+
+--  field_declaration  =
+--   (  [ doc_comment ]  ( method_declaration
+--   / constructor_declaration
+--   / class_declaration
+--   / interface_declaration
+--   / variable_declaration )  )
+--   / static_initializer
+--   /  ";"  .
+--
+from field_declaration
+  event PublicId, PrivateId, ProtectedId, StaticId, FinalId, NativeID, SynchronizedId, AbstractId, ThreadsafeId, TransientId to field_declaration1
+    action `    SetModifier(VarObj, Token);`
+  event BooleanId, ByteId, CharId, DoubleId, FloatId, IntId, LongId, ShortId to field_declaration2
+    action `    SetType(VarObj, Basic, Token);`
+  event UndefId to field_declaration2
+    action `    SetType(VarObj, Class, Token);`
+  event VoidId to field_declaration2
+    action `    SetType(VarObj, Void);`
+  event ClassId to out
+    action `    ClassList.Append(new TJavaClass);`
+    gosub class_declaration
+  event InterfaceId to out
+    action `    ClassList.Append(new TJavaClass);`
+    action `    ClassList.Last_Element.SetInterface;`
+    gosub interface_declaration
+  event PointVirgId to out
+  event default + to out
+from field_declaration1
+  event PublicId, PrivateId, ProtectedId, StaticId, FinalId, NativeID, SynchronizedId, AbstractId, ThreadsafeId, TransientId to field_declaration1
+    action `    SetModifier(VarObj, Token);`
+  event BooleanId, ByteId, CharId, DoubleId, FloatId, IntId, LongId, ShortId to field_declaration2
+    action `    SetType(VarObj, Basic, Token);`
+  event UndefId to field_declaration2
+    action `    SetType(VarObj, Class, Token);`
+  event VoidId to field_declaration2
+    action `    SetType(VarObj, Void);`
+  event ClassId to out
+    action `    ClassList.Append(new TJavaClass);`
+    action `    ClassList.Last_Element.SetModifier(VarObj);`
+    gosub class_declaration
+  event InterfaceId to out
+    action `    ClassList.Append(new TJavaClass);`
+    action `    ClassList.Last_Element.SetModifier(VarObj);`
+    action `    ClassList.Last_Element.SetInterface;`
+    gosub interface_declaration
+  event AccoladeGaucheId + to out -- static_initializer
+    action `    AddNew(ObjectBodyList, "begin");`
+    action `    OutputList := ObjectBodyList;`
+    gosub statement_block
+    -- pas de end car il sera mis d'office par la fin de la classe
+from field_declaration2
+  event UndefId to field_declaration3
+    action `    SetId(VarObj, Token);`
+  event ParGaucheId to constructor_declaration
+    -- le type est "fermé"
+    action `    if not ClassList.Last_Element.IsClosed then`
+    action `      ClassList.Last_Element.Add(ObjectSpecList);`
+    action `      if not ClassList.Last_Element.GetInterface then`
+    action `        if ClassList.Last_Element.GetFieldList.Vide then`
+    action `          AddNew(ObjectSpecList, " null record;");`
+    action `        else`
+    action `          AddNew(ObjectSpecList, " record");`
+    action `          Copy(ClassList.Last_Element.GetFieldList, ObjectSpecList);`
+    action `          Done(ClassList.Last_Element.GetFieldList);`
+    action `        AddNew(ObjectSpecList, "end record;");`
+    action `        end if;`
+    action `      else`
+    action `          AddNew(ObjectSpecList, ';');`
+    action `      end if;`
+    action `    end if;`
+    -- déclaration des constructeurs
+    action `    VarObj.SetIdFromType;`
+    action `    Add(ObjectSpecList, "function New_" & VarObj.GetId & "(");`
+    action `    Add(ObjectBodyList, "function New_" & VarObj.GetId & "(");`
+  event CrochetGaucheId, EgalId, VirgId + to variable_declaration
+    action `    OutputList := ObjectSpecList;`
+    action `    FieldList  := ClassList.Last_Element.GetFieldList;`
+  event PointVirgId to out
+from field_declaration3
+  event ParGaucheId to method_declaration
+    -- le type est "fermé"
+    action `    if not ClassList.Last_Element.IsClosed then`
+    action `      ClassList.Last_Element.Add(ObjectSpecList);`
+    action `      if not ClassList.Last_Element.GetInterface then`
+    action `        if ClassList.Last_Element.GetFieldList.Vide then`
+    action `          AddNew(ObjectSpecList, " null record;");`
+    action `        else`
+    action `          AddNew(ObjectSpecList, " record");`
+    action `          Copy(ClassList.Last_Element.GetFieldList, ObjectSpecList);`
+    action `          Done(ClassList.Last_Element.GetFieldList);`
+    action `        AddNew(ObjectSpecList, "end record;");`
+    action `        end if;`
+    action `      else`
+    action `          AddNew(ObjectSpecList, ';');`
+    action `      end if;`
+    action `    end if;`
+    -- déclaration des méthodes
+    action `    if VarObj.GetTypeNature = Void then`
+    action `      Add(ObjectSpecList, "procedure " & VarObj.GetId & "(This : access Typ");`
+    action `      Add(ObjectBodyList, "procedure " & VarObj.GetId & "(This : access Typ");`
+    action `    else`
+    action `      Add(ObjectSpecList, "function " & VarObj.GetId & "(This : access Typ");`
+    action `      Add(ObjectBodyList, "function " & VarObj.GetId & "(This : access Typ");`
+    action `    end if;`
+  event CrochetGaucheId, EgalId, VirgId + to variable_declaration
+    action `    OutputList := ObjectSpecList;`
+    action `    FieldList  := ClassList.Last_Element.GetFieldList;`
+  event PointVirgId to out
+    action `    VarObj.Add(ObjectSpecList, ClassList.Last_Element.GetFieldList);`
+
+--  method_declaration  =
+--   < modifier > type identifier
+--   "("  [ parameter_list ]  ")"  <  "["  "]"  >
+--   ( statement_block  /  ";"  )  .
+--
+from method_declaration
+  event UndefId, BooleanId, ByteId, CharId, DoubleId, FloatId, IntId, LongId, ShortId, VoidId, FinalId + to method_declaration41
+    action `    Add(ObjectSpecList, "; ");`
+    action `    Add(ObjectBodyList, "; ");`
+    gosub parameter_list
+  event ParDroiteId to method_declaration5
+    action `    Add(ObjectSpecList, ')');`
+    action `    Add(ObjectBodyList, ')');`
+from method_declaration41
+  event ParDroiteId to method_declaration5
+    action `    Add(ObjectSpecList, ')');`
+    action `    Add(ObjectBodyList, ')');`
+from method_declaration5  -- [ ou sta ou ;
+  event CrochetGaucheId to method_declaration51
+  event AccoladeGaucheId + to out
+    action `    if VarObj.GetTypeNature /= Void then`
+    action `      Add(ObjectBodyList, " return " & VarObj.GetType);`
+    action `      Add(ObjectSpecList, " return " & VarObj.GetType);`
+    action `    end if;`
+    action `    AddNew(ObjectBodyList, " is");`
+    action `    AddNew(ObjectBodyList, "begin");`
+    action `    OutputList := ObjectBodyList;`
+    gosub statement_block
+    action `    AddNew(ObjectBodyList, "end;");`
+    action `    AddNew(ObjectSpecList, ';');`
+    action `    OutputList := ObjectSpecList;`
+  event PointVirgId to out
+    action `    if VarObj.GetTypeNature /= Void then`
+    action `      Add(ObjectSpecList, " return " & VarObj.GetType);`
+    action `    end if;`
+    action `    if VarObj.IsAbstract or else ClassList.Last_Element.GetInterface then`
+    action `      AddNew(ObjectSpecList, " is abstract;");`
+    action `      AddNew(ObjectBodyList, ';');`
+    action `    else`
+    action `      AddNew(ObjectSpecList, ';');`
+    action `      AddNew(ObjectBodyList, ';');`
+   action `    end if;`
+  event ThrowsId to method_declaration6
+  event VirgId to method_declaration6
+from method_declaration51
+  event CrochetDroitId to method_declaration52
+from method_declaration52  -- sta ou ;
+  event AccoladeGaucheId + to out
+    action `    if VarObj.GetTypeNature /= Void then`
+    action `      Add(ObjectBodyList, " return " & VarObj.GetType);`
+    action `      Add(ObjectSpecList, " return " & VarObj.GetType);`
+    action `    end if;`
+    action `    AddNew(ObjectBodyList, " is");`
+    action `    AddNew(ObjectBodyList, "begin");`
+    action `    OutputList := ObjectBodyList;`
+    gosub statement_block
+    action `    AddNew(ObjectBodyList, "end;");`
+    action `    AddNew(ObjectSpecList, ';');`
+    action `    OutputList := ObjectSpecList;`
+  event PointVirgId to out
+  event ThrowsId to method_declaration7
+  event VirgId to method_declaration7
+from method_declaration6
+  event UndefId to method_declaration5
+from method_declaration7
+  event UndefId to method_declaration52
+
+--  constructor_declaration  =
+--   < modifier > identifier  "("  [ parameter_list ]  ")"
+--  statement_block  .
+--
+from constructor_declaration  -- par ou )
+  event UndefId, BooleanId, ByteId, CharId, DoubleId, FloatId, IntId, LongId, ShortId, VoidId + to constructor_declaration41
+    gosub parameter_list
+  event ParDroiteId to constructor_declaration5
+    action `    Add(ObjectSpecList, "aThis : Ref := null) return Ref");`
+    action `    Add(ObjectBodyList, "aThis : Ref := null) return Ref");`
+from constructor_declaration41
+  event ParDroiteId to constructor_declaration5
+    action `    Add(ObjectSpecList, "; aThis : Ref := null) return Ref");`
+    action `    Add(ObjectBodyList, "; aThis : Ref := null) return Ref");`
+from constructor_declaration5  -- [ ou sta ou ;
+  event AccoladeGaucheId + to out
+    action `    AddNew(ObjectBodyList, " is");`
+    action `    AddNew(ObjectBodyList, "  This : Ref := aThis;");`
+    action `    AddNew(ObjectBodyList, "begin");`
+    action `    AddNew(ObjectBodyList, "if This = null then");`
+    action `    AddNew(ObjectBodyList, "  This := new Typ;");`
+    action `    AddNew(ObjectBodyList, "end if;");`
+    action `    OutputList := ObjectBodyList;`
+    gosub statement_block
+    action `    AddNew(ObjectBodyList, "return This;");`
+    action `    AddNew(ObjectBodyList, "end;");`
+    action `    AddNew(ObjectSpecList, ';');`
+    action `    OutputList := ObjectSpecList;`
+  event PointVirgId to out
+  event ThrowsId to constructor_declaration6
+from constructor_declaration6
+  event UndefId to constructor_declaration5
+
+--  statement_block  =  "{"  < statement >  "}"  .
+--
+--  OutputList doit être positionné avant !
+from statement_block
+  event AccoladeGaucheId to statement_block1
+    gosub statement
+  event default + to out
+    gosub statement
+from statement_block1
+  event AccoladeDroiteId to out
+  event default + to statement_block1
+    gosub statement
+
+--  variable_declaration  =
+--   < modifier > type variable_declarator
+--   <  "," variable_declarator  >  ";"  .
+--
+--  OutputList doit être positionné avant !
+from variable_declaration
+  event CrochetGaucheId to variable_declaration1
+    action `    IncTabIndex(VarObj);`
+  event EgalId to variable_declaration2
+    action `    SavedOutputList := OutputList;`
+    action `    OutputList := GetInitText(VarObj);`
+    action `    Add(OutputList, " := ");`
+    gosub variable_initializer
+    action `    OutputList := SavedOutputList;`
+  event VirgId to variable_declaration3
+    action `    VarObj.Add(OutputList, FieldList);`
+  event PointVirgId to out
+    action `    VarObj.Add(OutputList, FieldList);`
+from variable_declaration1
+  event CrochetDroitId to variable_declaration11
+from variable_declaration11
+  event UndefId to variable_declaration11
+    action `    SetId(VarObj, Token);`
+  event CrochetGaucheId to variable_declaration1
+    action `    IncTabIndex(VarObj);`
+  event EgalId to variable_declaration2
+    action `    SavedOutputList := OutputList;`
+    action `    OutputList := GetInitText(VarObj);`
+    action `    Add(OutputList, " := ");`
+    gosub variable_initializer
+    action `    OutputList := SavedOutputList;`
+  event VirgId to variable_declaration3
+    action `    VarObj.Add(OutputList, FieldList);`
+  event PointVirgId to out
+    action `    VarObj.Add(OutputList, FieldList);`
+from variable_declaration2
+  event VirgId to variable_declaration3
+    action `    VarObj.Add(OutputList, FieldList);`
+  event PointVirgId to out
+    action `    VarObj.Add(OutputList, FieldList);`
+from variable_declaration3
+  event UndefId to variable_declaration
+    action `    SetId(VarObj, Token);`
+
+--  variable_declarator  =
+--   identifier  <  "["  "]"  >  [  "=" variable_initializer ]  .
+--
+
+--  variable_initializer  =
+--  expression
+--   /  (  "{"  [ variable_initializer
+--   <  "," variable_initializer  >  [  ","  ]  ]  "}"  )  .
+--
+--  OutputList doit être positionné avant !
+from variable_initializer
+  event AccoladeGaucheId to variable_initializer1
+    action `    Add(OutputList, "new j2a_" & GetId(VarObj) & "'(");`
+  event default + to out
+    gosub expression
+from variable_initializer1
+  event default + to variable_initializer2
+    gosub statement
+from variable_initializer2
+  event AccoladeDroiteId to out
+    action `    Add(OutputList, ')');`
+
+--  static_initializer  =
+--   "static" statement_block  .
+--
+
+--  parameter_list  =
+--  parameter  <  "," parameter >  .
+--
+from parameter_list
+  event FinalId to parameter_list0
+    action `    SetModifier(ParaObj, Token);`
+  event BooleanId, ByteId, CharId, DoubleId, FloatId, IntId, LongId, ShortId, VoidId to parameter_list1
+    action `    ParaObj.SetType (Basic, Token);`
+  event UndefId to parameter_list1
+    action `    ParaObj.SetType (Class, Token);`
+from parameter_list0
+  event BooleanId, ByteId, CharId, DoubleId, FloatId, IntId, LongId, ShortId, VoidId to parameter_list1
+    action `    ParaObj.SetType (Basic, Token);`
+  event UndefId to parameter_list1
+    action `    ParaObj.SetType (Class, Token);`
+from parameter_list1
+  event UndefId to parameter_list2
+    action `    ParaObj.SetId (Token);`
+  event CrochetGaucheId to parameter_list21
+    action `    ParaObj.IncTabIndex;`
+from parameter_list2
+  event CrochetGaucheId to parameter_list21
+    action `    ParaObj.IncTabIndex;`
+  event VirgId to parameter_list
+    action `    ParaObj.Add(ObjectSpecList);`
+    action `    ParaObj.Add(ObjectBodyList);`
+    action `    Add(ObjectSpecList, "; ");`
+    action `    Add(ObjectBodyList, "; ");`
+  event default + to out
+    action `    ParaObj.Add(ObjectSpecList);`
+    action `    ParaObj.Add(ObjectBodyList);`
+from parameter_list21
+  event CrochetDroitId to parameter_list22
+from parameter_list22
+  event UndefId to parameter_list22
+    action `    ParaObj.SetId (Token);`
+  event VirgId to parameter_list
+    action `    ParaObj.Add(ObjectSpecList);`
+    action `    ParaObj.Add(ObjectBodyList);`
+    action `    Add(ObjectSpecList, "; ");`
+    action `    Add(ObjectBodyList, "; ");`
+  event default + to out
+    action `    ParaObj.Add(ObjectSpecList);`
+    action `    ParaObj.Add(ObjectBodyList);`
+
+--  parameter  =
+--  type identifier  <  "["  "]"  >  .
+--
+
+--  statement  =
+--  variable_declaration
+--   /  ( expression  ";"  )
+--   /  ( statement_block )
+--   /  ( if_statement )
+--   /  ( do_statement )
+--   /  ( while_statement )
+--   /  ( for_statement )
+--   /  ( try_statement )
+--   /  ( switch_statement )
+--   /  ( assert_statement )
+--   /  (  "synchronized"  "(" expression  ")" statement  )
+--   /  (  "return"  [ expression ]  ";"  )
+--   /  (  "throw" expression ";"  )
+--   /  ( identifier  ":" statement )
+--   /  (  "break"  [ identifier ]  ";"  )
+--   /  (  "continue"  [ identifier ]  ";"  )
+--   /  (  ";"  )  .
+--
+--  OutputList doit être positionné avant !
+from statement
+  event BooleanId, ByteId, CharId, DoubleId, FloatId, IntId, LongId, ShortId, VoidId to V1
+    action `    SetType(VarObj, Basic,  Token);`
+  event UndefId to V1
+    action `    SetType(VarObj, Class,  Token);`
+  event AccoladeGaucheId + to out
+    gosub statement_block
+  event IfId + to out
+    gosub if_statement
+  event DoId + to out
+    gosub do_statement
+  event WhileId + to out
+    gosub while_statement
+  event ForId + to out
+    gosub for_statement
+  event TryId + to out
+    gosub try_statement
+  event SwitchId + to out
+    gosub switch_statement
+  event AssertId + to out
+    gosub assert_statement
+  event SynchronizedId + to out
+    gosub synchronized_statement
+  event ReturnId to R1
+    action `    Add(OutputList, Token);`
+  event ThrowId to T1
+    gosub expression
+  event BreakId to B1
+    action `    Add(OutputList, Token);`
+  event ContinueId to C1
+    action `    Add(OutputList, Token);`
+  event PointVirgId to out
+    action `    AddNew(OutputList, "null;");`
+  event AccoladeDroiteId + to out
+  event CrochetDroitId to out
+  event default + to E1
+    gosub expression
+from R1
+  event PointVirgId to out
+    action `    AddNew(OutputList, Token);`
+  event default + to R2
+    gosub expression
+from R2
+  event PointVirgId to out
+    action `    AddNew(OutputList, Token);`
+from T1
+  event PointVirgId to out
+    action `    AddNew(OutputList, Token);`
+from B1
+  event UndefId to B2
+    action `    Add(OutputList, ' ' & Token);`
+  event PointVirgId to out
+    action `    AddNew(OutputList, Token);`
+from B2
+  event PointVirgId to out
+    action `    AddNew(OutputList, Token);`
+from C1
+  event UndefId to C2
+    action `    Add(OutputList, ' ' & Token);`
+  event PointVirgId to out
+    action `    AddNew(OutputList, Token);`
+from C2
+  event PointVirgId to out
+    action `    AddNew(OutputList, Token);`
+from E1
+  event PointVirgId to out
+    action `    AddNew(OutputList, Token);`
+  event AccoladeDroiteId + to out
+from V1
+  event UndefId to out
+    action `    SetId(VarObj, Token);`
+    action `    FieldList := OutputList;`
+    action `    AddNew(OutputList, "--  Help J2Ada : put it before begin");`
+    gosub variable_declaration
+  event CrochetGaucheId + to out
+    action `    FieldList := OutputList;`
+    action `    AddNew(OutputList, "--  Help J2Ada : put it before begin");`
+    gosub variable_declaration
+  event default + to E1
+    action `    SetIdFromType(VarObj);`
+    action `    Add(OutputList, VarObj.GetId);`
+    gosub expression
+
+--  if_statement =
+--   "if"  "(" expression  ")" statement
+--   [  "else" statement ]  .
+--
+from if_statement
+  event IfId to if_statement1
+    action `    Add(OutputList, "if ");`
+from if_statement1
+  event ParGaucheId to if_statement2
+    action `    Add(OutputList, '(');`
+    gosub expression
+from if_statement2
+  event ParDroiteId to if_statement21
+    action `    Add(OutputList, ')');`
+from if_statement21
+  event default + to if_statement3
+    action `    AddNew(OutputList, "then");`
+    gosub statement_block
+from if_statement3
+  event ElseId to out
+    action `    AddNew(OutputList, "else");`
+    gosub statement_block
+    action `    AddNew(OutputList, "end if;");`
+  event default + to out
+    action `    AddNew(OutputList, "end if;");`
+
+--  do_statement =
+--   "do" statement  "while"  "(" expression  ")"  ";"  .
+--
+from do_statement
+  event DoId to do_statement1
+    action `    AddNew(OutputList, "loop");`
+    gosub statement_block
+from do_statement1
+  event WhileId to do_statement2
+    action `    Add(OutputList, "exit when ");`
+from do_statement2
+  event ParGaucheId to do_statement3
+    action `    Add(OutputList, '(');`
+    gosub expression
+from do_statement3
+  event ParDroiteId to do_statement4
+    action `    AddNew(OutputList, ");");`
+from do_statement4
+  event PointVirgId to out
+    action `    AddNew(OutputList, "end loop;");`
+
+--  while_statement =
+--   "while"  "(" expression  ")" statement  .
+--
+from while_statement
+  event WhileId to while_statement1
+    action `    Add(OutputList, "while ");`
+from while_statement1
+  event ParGaucheId to while_statement2
+    action `    Add(OutputList, '(');`
+    gosub expression
+from while_statement2
+  event ParDroiteId to while_statement3
+    action `    AddNew(OutputList, ')');`
+from while_statement3
+  event default + to out
+    action `    AddNew(OutputList, "loop");`
+    gosub statement_block
+    action `    AddNew(OutputList, "end loop;");`
+
+--  for_statement =
+--   "for"  "("  ( variable_declaration  /  ( expression  ";"  )  /  ";"  )
+--   [ expression ]  ";"
+--   [ expression ]  ";"
+--   ")" statement  .
+--
+from for_statement
+  event ForId to for_statement1
+from for_statement1
+  event ParGaucheId to for_statement2
+from for_statement2  -- init
+  event PointVirgId to for_statement3
+  event default + to for_statement3
+    action `    AddNew(OutputList, "declare");`
+    gosub statement_block
+from for_statement3  -- expression
+  event PointVirgId to for_statement4
+    action `    AddNew(OutputList, "begin");`
+    action `    Add(OutputList, "while (True");`
+  event default + to for_statement31
+    action `    AddNew(OutputList, "begin");`
+    action `    Add(OutputList, "while (");`
+    gosub expression
+from for_statement31
+  event PointVirgId to for_statement4
+from for_statement4  -- update
+  event PointVirgId to for_statement5
+  event ParDroiteId to out
+    action `    AddNew(OutputList, ')');`
+    action `    AddNew(OutputList, "loop");`
+    gosub statement_block
+    action `    AddNew(OutputList, "end loop;");`
+    action `    AddNew(OutputList, "end;");`
+  event default + to for_statement5
+    action `    SavedOutputList := OutputList;`
+    action `    OutputList := TempList;`
+    gosub expression
+    action `    OutputList := SavedOutputList;`
+from for_statement5
+  event ParDroiteId to out
+    action `    AddNew(OutputList, ')');`
+    action `    AddNew(OutputList, "loop");`
+    gosub statement_block
+    action `    Copy(TempList, OutputList);`
+    action `    Done(TempList);`
+    action `    AddNew(OutputList, ";");`
+    action `    AddNew(OutputList, "end loop;");`
+    action `    AddNew(OutputList, "end;");`
+
+--  try_statement =
+--   "try" statement
+--   <  "catch"  "(" parameter  ")" statement >
+--   [  "finally" statement ]  .
+--
+from try_statement
+  event TryId to try_statement1
+    action `    AddNew(OutputList, "declare");`
+    action `    AddNew(OutputList, "begin");`
+    gosub statement_block
+from try_statement1
+  event CatchId to try_statement2
+    action `    AddNew(OutputList, "exception");`
+  event FinallyId to out
+    action `    AddNew(OutputList, "end;");`
+    gosub statement_block
+  event default + to out
+    action `    AddNew(OutputList, "end;");`
+from try_statement2
+  event ParGaucheId to try_statement3
+from try_statement3
+  event UndefId to try_statement4
+    action `    Add(OutputList, "when " & Token & ':');`
+from try_statement4
+  event UndefId to try_statement5
+    action `    AddNew(OutputList, Token & " =>");`
+from try_statement5
+  event ParDroiteId to try_statement1
+    gosub statement_block
+
+--  switch_statement =
+--   "switch"  "(" expression  ")"  "{"
+--   <  (  "case" expression  ":"  )
+--   /  (  "default"  ":"  )
+--   / statement >
+--   "}"  .
+--
+from switch_statement
+  event SwitchId to switch_statement1
+    action `    Add(OutputList, "case ");`
+from switch_statement1
+  event ParGaucheId to switch_statement2
+    action `    Add(OutputList, '(');`
+    gosub expression
+from switch_statement2
+  event ParDroiteId to switch_statement3
+    action `    AddNew(OutputList, ") is");`
+from switch_statement3
+  event AccoladeGaucheId to switch_statement4
+from switch_statement4
+  event CaseId to switch_statement5
+    action `    Add(OutputList, "when ");`
+    gosub expression
+  event DefaultId to switch_statement5
+    action `    AddNew(OutputList, "when others");`
+  event AccoladeDroiteId to out
+    action `    AddNew(OutputList, "end case;");`
+  event BreakId to switch_statement6
+from switch_statement5
+  event CaseId to switch_statement5
+    action `    Add(OutputList, '|');`
+    gosub expression
+  event DeuxPointsId to switch_statement4
+    action `    Add(OutputList, " => ");`
+    gosub statement_block
+from switch_statement6
+  event PointVirgId to switch_statement4
+
+--  assert_statement =
+--   "assert"  expression  .
+--
+from assert_statement
+  event AssertId to assert_statement1
+    action `    Add(OutputList, "pragma Assert (");`
+from assert_statement1
+  event default + to assert_statement2
+    gosub expression
+    action `    Add(OutputList, ')');`
+from assert_statement2
+  event PointVirgId to out
+    action `    AddNew(OutputList, Token);`
+
+--  synchronized_statement =
+--   "synchronized"  "(" expression  ")" statement  .
+--
+from synchronized_statement
+  event SynchronizedId to synchronized_statement1
+from synchronized_statement1
+  event ParGaucheId to synchronized_statement2
+    gosub expression
+from synchronized_statement2
+  event ParDroiteId to out
+    gosub statement_block
+
+--  expression  =
+--  numeric_expression
+--   / testing_expression
+--   / logical_expression
+--   / string_expression
+--   / bit_expression
+--   / casting_expression
+--   / creating_expression
+--   / literal_expression
+--   /  "null"
+--   /  "super"
+--   /  "this"
+--   / identifier
+--   /  (  "(" expression  ")"  )
+--   /  ( expression
+--   (  (  "("  [ arglist ]  ")"  )
+--   /  (  "[" expression  "]"  )
+--   /  (  "." expression  )
+--   /  (  "," expression  )
+--   /  (  "instanceof"  ( class_name / interface_name )  )
+--   )  )  .
+--
+from expression
+  event
+  -- numeric_expression
+    MoinsId, MoinsEgalId,
+    PlusPlusId,
+    MoinsMoinsId,
+    PlusId, PlusEgalId,
+    EtoileId, EtoileEgalId,
+    BarreId, DivEgalId,
+    PourcentId, PourcentEgalId,
+  -- testing_expression
+    SupId,
+    InfId,
+    SupEgalId,
+    InfEgalId,
+    SupSupSupEgalId,
+    EgalEgalId,
+    ExclamEgalId,
+  -- logical_expression
+    ExclamId,
+    EtId, EtEgalId,
+    PipeId, PipeEgalId,
+    XorId, XorEgalId,
+    EtEtId,
+    PipePipeId,
+    TrueId,
+    FalseId,
+  -- string_expression
+  -- bit_expression
+    TildeId,
+    InfInfId,
+    SupSupId,
+    SupSupSupId,
+  -- casting_expression
+  -- literal_expression
+    IntegerId,
+    RealId,
+    StringId,
+    CarId,
+    NullId,
+    SuperId,
+    ThisId,
+    EgalId,
+    UndefId, PointId, VirgId to expression
+    action `    Add(OutputList, ' ' & Token);`
+  -- creating_expression
+  event NewId to creating_expression
+    action `    if GetTypeNature (VarObj) = Class then`
+    action `      Add(OutputList, GetBaseType (VarObj) & ".New");`
+    action `    else`
+    action `      Add(OutputList, "new");`
+    action `    end if;`
+  event CrochetDroitId + to out
+  event ParGaucheId to expression
+    action `    MethObj.PushPara;`
+    gosub inner_expression
+  event InterroId to expression1 -- pour "cond ? val 1 : val 2"
+    action `    Add(OutputList, ' ' & Token);`
+    gosub expression
+  event default + to out
+from expression1
+  event DeuxPointsId to expression
+    action `    Add(OutputList, ' ' & Token);`
+    gosub expression
+
+from inner_expression
+  event
+  -- numeric_expression
+    MoinsId, MoinsEgalId,
+    PlusPlusId,
+    MoinsMoinsId,
+    PlusId, PlusEgalId,
+    EtoileId, EtoileEgalId,
+    BarreId, DivEgalId,
+    PourcentId, PourcentEgalId,
+  -- testing_expression
+    SupId,
+    InfId,
+    SupEgalId,
+    InfEgalId,
+    SupSupSupEgalId,
+    EgalEgalId,
+    ExclamEgalId,
+  -- logical_expression
+    ExclamId,
+    EtId, EtEgalId,
+    PipeId, PipeEgalId,
+    XorId, XorEgalId,
+    EtEtId,
+    PipePipeId,
+    TrueId,
+    FalseId,
+  -- string_expression
+  -- bit_expression
+    TildeId,
+    InfInfId,
+    SupSupId,
+    SupSupSupId,
+  -- casting_expression
+  -- literal_expression
+    IntegerId,
+    RealId,
+    StringId,
+    CarId,
+    NullId,
+    SuperId,
+    ThisId,
+    EgalId,
+    UndefId, PointId, VirgId to inner_expression
+    action `    if not MethObj.IsParaPresent then`
+    action `      Add(OutputList, '(');`
+    action `    end if;`
+    action `    MethObj.SetParaPresent(True);`
+    action `    Add(OutputList, ' ' & Token);`
+  -- creating_expression
+  event NewId to inner_expression
+    action `    if not MethObj.IsParaPresent then`
+    action `      Add(OutputList, '(');`
+    action `    end if;`
+    action `    MethObj.SetParaPresent(True);`
+    action `    Add(OutputList, "new");`
+    gosub creating_expression
+  event ParGaucheId to inner_expression
+    action `    MethObj.PushPara;`
+    gosub inner_expression
+  event ParDroiteId to out
+    action `    if MethObj.IsParaPresent then`
+    action `      Add(OutputList, ')');`
+    action `    end if;`
+    action `    MethObj.PopPara;`
+  event InterroId to inner_expression1 -- pour "cond ? val 1 : val 2"
+    action `    Add(OutputList, ' ' & Token);`
+    gosub inner_expression
+from inner_expression1
+  event DeuxPointsId to inner_expression
+    action `    Add(OutputList, ' ' & Token);`
+    gosub inner_expression
+
+--  numeric_expression  =
+--   (  (  "-"
+--   /  "++"
+--   /  "--"  )
+--  expression )
+--   /  ( expression
+--   (  "++"
+--   /  "--"  )  )
+--   /  ( expression
+--   (  "+"
+--   /  "+="
+--   /  "-"
+--   /  "-="
+--   /  "*"
+--   /  "*="
+--   /  "/"
+--   /  "/="
+--   /  "%"
+--   /  "%="  )
+--  expression  )  .
+--
+--  testing_expression  =
+--   ( expression
+--   (  ">"
+--   /  "<"
+--   /  ">="
+--   /  "<="
+--   /  "=="
+--   /  "!="  )
+--  expression  )  .
+--
+--  logical_expression  =
+--   (  "!" expression )
+--   /  ( expression
+--   (  "ampersand"
+--   /  "ampersand="
+--   /  "|"
+--   /  "|="
+--   /  "^"
+--   /  "^="
+--   /  (  "ampersand"  "ampersand"  )
+--   /  "||"
+--   /  "%"
+--   /  "%="  )
+--  expression  )
+--   /  ( expression  "?" expression  ":" expression )
+--   /  "true"
+--   /  "false"  .
+--
+--  string_expression  =  ( expression
+--   (  "+"
+--   /  "+="  )
+--  expression  )  .
+--
+--  bit_expression  =
+--   (  "~" expression )
+--   /  ( expression
+--   (  ">>="
+--   /  "<<"
+--   /  ">>"
+--   /  ">>>"  )
+--  expression  )  .
+--
+--  casting_expression  =
+--   "(" type  ")" expression  .
+--
+--  creating_expression  =
+--   "new"  (  ( classe_name  "("  [ arglist ]  ")"  )
+--   /  ( type_specifier  [  "[" expression  "]"  ]  <  "["  "]"  >  )
+--   /  (  "(" expression  ")"  )  )  .
+--
+--  OutputList doit être positionné avant !
+from creating_expression
+  event BooleanId, ByteId, CharId, DoubleId, FloatId, IntId, LongId, ShortId to creating_expression2
+    action `    SetNewType(VarObj, Basic, Token);`
+  event UndefId to creating_expression2
+    action `    SetNewType(VarObj, Class, Token);`
+from creating_expression2
+  event PointId to creating_expression3
+  event ParGaucheId+ to creating_expression42
+    action `    Add(OutputList, '_' & GetBaseType(VarObj));`
+    gosub expression
+  event CrochetGaucheId to creating_expression21
+    action `    Add(OutputList, " j2a_" & GetId(VarObj) & "(0..");`
+    gosub expression
+ event PointVirgId + to out
+from creating_expression21
+  event CrochetDroitId to creating_expression5
+    action `    Add(OutputList, "-1");`
+  event PointVirgId + to out
+from creating_expression3
+  event UndefId to creating_expression2
+from creating_expression41
+  event VirgId to creating_expression41
+    action `    AddNew(OutputList, Token);`
+    gosub expression
+from creating_expression42
+  event ParDroiteId + to out
+  event PointVirgId + to out
+from creating_expression5
+  event CrochetGaucheId to creating_expression21
+    action `    Add(OutputList, ", 0..");`
+    gosub expression
+ event PointVirgId + to out
+    action `    Add(OutputList, ')');`
+
+--  literal_expression  =
+--  integer_literal
+--   / float_literal
+--   / string
+--   / character  .
+--
+--  arglist  =
+--  expression  <  "," expression  >  .
+--
+--  type  =
+--  type_specifier  <  "["  "]"  >  .
+--
+--  type_specifier =
+--   "boolean"
+--   /  "byte"
+--   /  "char"
+--   /  "short"
+--   /  "int"
+--   /  "float"
+--   /  "long"
+--   /  "double"
+--   / class_name
+--   / interface_name  .
+--
+--  modifier =
+--   "public"
+--   /  "private"
+--   /  "protected"
+--   /  "static"
+--   /  "final"
+--   /  "native"
+--   /  "synchronized"
+--   /  "abstract"
+--   /  "threadsafe"
+--   /  "transient"  .
+--  ModifierId ou PublicId, PrivateId, ProtectedId, StaticId, FinalId, NativeID, SynchronizedId, AbstractId, ThreadsafeId, TransientId
+
+--  package_name =
+--  identifier
+--   /  ( package_name  "." identifier )  .
+--
+
+--  class_name  =
+--  identifier
+--   /  ( package_name  "." identifier )  .
+--
+--  interface_name =
+--  identifier
+--   /  ( package_name  "." identifier )  .
+--
+--  integer_literal =
+--   (  (  "1..9"  <  "0..9"  >  )
+--   /  <  "0..7"  >
+--   /  (  "0"  "x"  "0..9a..f"  <  "0..9a..f"  >  )  )
+--   [  "l"  ]  .
+--
+--  float_literal  =
+--   ( decimal_digits  "."  [ decimal_digits ]  [ exponent_part ]  [ float_type_suffix ]  )
+--   /  (  "." decimal_digits  [ exponent_part ]  [ float_type_suffix ]  )
+--   /  ( decimal_digits  [ exponent_part ]  [ float_type_suffix ]  )  .
+--
+--  decimal_digits  =
+--   "0..9"  <  "0..9"  >  .
+--
+--  exponent_part  =
+--   "e"  [  "+"  /  "-"  ] decimal_digits  .
+--
+--  float_type_suffix  =
+--   "f"  /  "d"  .
+--
+--  character  =
+--    "based on the unicode character set"  .
+--
+--  string  =
+--   "''"  < character  >  "''"  .
+--
+--  identifier  =
+--    "a..z,$,_"  <  "a..z,$,_,0..9,unicode character over 00C0"  >  .
+--
+end
