@@ -1,0 +1,13 @@
+name = "j2ada"
+description = "Almost Java to Ada translator"
+version = "1.4.2"
+tags = ["java", "translator"]
+
+authors = ["Pascal Pignard"]
+maintainers = ["Pascal Pignard <blady.net@orange.fr>"]
+maintainers-logins = ["Blady-Com"]
+website = "https://github.com/Blady-Com/j2ada"
+
+licenses = "CECILL-2.1"
+
+executables = ["j2ada"]
