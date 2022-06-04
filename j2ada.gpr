@@ -6,10 +6,10 @@ project j2ada is
    for Main use ("j2ada.adb");
 
    package Compiler is
-      for Switches ("ada") use ("-gnatW8", "-gnatU", "-gnatf", "-gnatVaep", "-gnatw.eDH.Y",
+      for Switches ("ada") use ("-gnatW8", "-gnatU", "-gnatf", "-gnatVaep", "-gnatw.eDH.Y.N",
          "-fstack-check", "-g", "-gnato", "-gnatE", "-gnata", "-gnateA",
-         "-gnateE", "-gnateF", "-gnateV", "-Wall",
-         "-gnatec=" & j2ada'Project_Dir & "pragma_debug.adc");
+         "-gnateE", "-gnateF", "-gnateV", "-Wall");
+      for Local_Configuration_Pragmas use "pragma_debug.adc";
    end Compiler;
 
    package Binder is
@@ -25,6 +25,6 @@ project j2ada is
    end Linker;
 
    package Pretty_Printer is
-      for Default_Switches ("ada") use ("-M120", "-W8");
+      for Default_Switches ("ada") use ("-M120", "-W8", "--comments-unchanged");
    end Pretty_Printer;
 end j2ada;
