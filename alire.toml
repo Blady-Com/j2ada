@@ -11,3 +11,6 @@ website = "https://github.com/Blady-Com/j2ada"
 licenses = "CECILL-2.1"
 
 executables = ["j2ada"]
+
+[gpr-set-externals.'case(os)']
+macos   = { J2ADA_LINKER_FLAGS = "-Wl,-no_pie" } # needed for symbolic exception traceback 

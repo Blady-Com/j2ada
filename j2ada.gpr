@@ -21,7 +21,7 @@ project j2ada is
    end Builder;
 
    package Linker is
-      for Default_Switches ("ada") use ("-g", "-Wl,-no_pie");
+      for Default_Switches ("ada") use ("-g") & external ("J2ADA_LINKER_FLAGS", "");
    end Linker;
 
    package Pretty_Printer is
