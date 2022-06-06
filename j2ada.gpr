@@ -7,7 +7,7 @@ project j2ada is
 
    package Compiler is
       for Switches ("ada") use ("-gnatW8", "-gnatU", "-gnatf", "-gnatVaep", "-gnatw.eDH.Y.N",
-         "-fstack-check", "-g", "-gnato", "-gnatE", "-gnata", "-gnateA",
+         "-fstack-check", "-g", "-gnato", "-gnatE", "-gnata",
          "-gnateE", "-gnateF", "-gnateV", "-Wall");
       for Local_Configuration_Pragmas use "pragma_debug.adc";
    end Compiler;
