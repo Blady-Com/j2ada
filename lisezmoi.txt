@@ -9,8 +9,7 @@ Pour le moment, les parties spécification et corps de l'unité Ada générée
 sont valides avec quelques modifications manuelles.
 
 2) Création du programme de traduction
-Télécharger l'archive J2Ada-1.4b.tgz de la version 1.4b sur Blady :
-http://blady.pagesperso-orange.fr/creations.html#j2ada
+(http://blady.pagesperso-orange.fr/creations.html#j2ada)
 
 . Les sources du programme J2Ada sont :
 arbmgr.adb

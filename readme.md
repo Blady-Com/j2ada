@@ -1,55 +1,61 @@
+# J2Ada
 
-      J2Ada
+[![Alire](https://img.shields.io/endpoint?url=https://alire.ada.dev/badges/j2ada.json)](https://alire.ada.dev/crates/j2ada.html)
 
-
-1) Introduction
+## Introduction
 J2Ada translates a Java valid source code in Ada source code.
 In this first version, a large part of Java syntax is translated.
-But up to now both specification and body parts of the unit generated Ada
-are valid with few manual modifcations.
+But, up to now, both specification and body parts of the generated Ada code
+become valid with few manual modifcations.
 
-2) Creation of translation program
-Download the version 1.4b archive J2Ada-1.4b.tgz on Blady:
-http://blady.pagesperso-orange.fr/creations.html#j2ada
+## Creation of translation program
+### Source codes of J2Ada program
+- arbmgr.adb
+- arbmgr.ads
+- basicdef.adb
+- basicdef.ads
+- fichsrc.adb
+- fichsrc.ads
+- importmgr.adb
+- importmgr.ads
+- insrc.adb
+- insrc.ads
+- j2ada.adb
+- javaseq.adb
+- javaseq.ads
+- javaseq.auto
+- javaseq.in
+- objpar.ads
+- objsrc.adb
+- objsrc.ads
+- outsrc.adb
+- outsrc.ads
 
-. The source codes J2Ada program are:
-arbmgr.adb
-arbmgr.ads
-basicdef.adb
-basicdef.ads
-fichsrc.adb
-fichsrc.ads
-importmgr.adb
-importmgr.ads
-insrc.adb
-insrc.ads
-j2ada.adb
-javaseq.adb
-javaseq.ads
-javaseq.auto
-javaseq.in
-objpar.ads
-objsrc.adb
-objsrc.ads
-outsrc.adb
-outsrc.ads
+(From [J2Ada on GitHub](https://github.com/Blady-Com/j2ada)).
 
-. Creation of the sequencer of Java interpretation:
-The Ada unit is already created: javaseq.adb and javaseq.ads.
-If necessary the sequencer may be modified with the file javaseq.auto
-containing Java syntax.
-Download the sequencer compiler on Blady:
-http://blady.pagesperso-orange.fr/creations.htm#automate
+### Creation of the sequencer of Java interpretation
+The sequencer unit in Ada is already created: javaseq.adb and javaseq.ads.
+If necessary the sequencer may be modified in the file javaseq.auto
+containing Java syntax and regenerated with the Automate sequencer compiler.
+
+Download the sequencer compiler from [Automate on GiHub](https://github.com/Blady-Com/Automate).
+
 Compile the program genauto then use it to generate the Ada units:
+
+```
 $ gnatmake genauto
 $ ./genauto <javaseq.in
+```
 
-. Compilation of J2Ada translator:
-$ gnatmake j2ada
+### Compilation of J2Ada translator
 
-3) Usage
+`$ gnatmake j2ada`
+
+## Usage
 The programs have been compiled and tested with GNAT GPL 2008 on Mac OS X 10.4.
-Translation of essai.java in essai.adb and essai.ads:
+Translation example of essai.java in essai.adb and essai.ads:
+
+```
 $ ./j2ada
 Entrer les informations suivantes :
 
@@ -69,26 +75,39 @@ essai.adb:100:04: loop or block statement must follow label
 essai.adb:105:04: loop or block statement must follow label
 essai.adb:107:04: loop or block statement must follow label
 gnatmake: "essai.adb" compilation error
-$
+```
+
 The residual first errors are inherent of object declarations mixed
-with Java Code. A comment "--  Help J2Ada : put it before begin" has been
+with Java Code. A comment `--  Help J2Ada : put it before begin` has been
 added to do the right modification.
 The source code essai.ads uses Java libraries provided from
 those of JGNAT (see also on Blady):
-Java-lang-string.ads
-Java-lang.ads
-java.ads
+- Java-lang-string.ads
+- Java-lang.ads
+- java.ads
 
 The display at each stage of the translation is activated by positioning at True
 the Debug constant in j2ada.adb.
 
-4) Copyright and license of J2Ada source codes (see list §2):
-(c) Pascal Pignard 2008-2010 (http://blady.pagesperso-orange.fr)
-CeCILL V2 (http://www.cecill.info)
-See also attachments:
-Licence_CeCILL_V2-en.txt and Licence_CeCILL_V2-fr.txt.
+## Copyright and license of J2Ada source codes
+All files are provided under terms of:
 
-5) History
+    (c) Pascal Pignard 2008-2010 (http://blady.pagesperso-orange.fr)
+    CeCILL V2 (http://www.cecill.info)
+
+See also attachments: Licence_CeCILL_V2-en.txt and Licence_CeCILL_V2-fr.txt.
+
+## Using Alire
+
+In your working folder, do:
+
+```
+% alr get j2ada
+% cd j2ada_*
+% alr run
+```
+
+## History
 - 1.4b :
 Add of importmgr.adb and importmgr.ads badly forgotten.
 - 1.4a:
